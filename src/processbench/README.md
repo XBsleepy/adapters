@@ -147,11 +147,23 @@ TODO: parity experiments have not been run yet. The plan below must be confirmed
 - **Metric:** average F1 over the four subsets, with per-subset F1 reported in `parity_experiment.json`.
 - **Subset:** `--split parity`, 50 items per subset, stratified by error/correct (seed 42).
 
-TODO: reproduction commands for both sides, fork URL and commit, and results.
+Planned reproduction (commands will be finalized with the fork URL, commit, and pinned agent/model):
+
+- **Original side** (fork of `QwenLM/ProcessBench`, codex backend to be added):
+  ```bash
+  python run_eval.py --backend codex --model <model> --configs gsm8k math olympiadbench omnimath
+  ```
+- **Harbor side** (developed and oracle-verified with Harbor 0.21.0):
+  ```bash
+  cd src/processbench && uv run processbench --split parity --output-dir ../../datasets/processbench_parity && cd ../..
+  uvx --from harbor==0.21.0 harbor run -c src/processbench/run_processbench_parity.yaml -a codex -m "<model>"
+  cd src/processbench && uv run python -m processbench.aggregate_metrics ../../jobs/<job_name> \
+    --dataset-dir ../../datasets/processbench_parity
+  ```
 
 ### Oracle Verification
 
-The oracle agent scores 100% on all 3,400 tasks (`aggregate_metrics.py` reports F1 = 100.0 for every subset).
+With Harbor 0.21.0 and Docker, the oracle agent scores 100% on all 3,400 tasks (0 exceptions). `aggregate_metrics.py` reports error acc, correct acc, and F1 of 100.0 for every subset, with 0 missing tasks. Running the `nop` agent (no answer written) gives reward 0, which confirms the verifier does not pass empty submissions.
 
 ## Notes & Caveats
 

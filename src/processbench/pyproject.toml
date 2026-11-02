@@ -1,7 +1,7 @@
 [project]
 name = "harbor-processbench-adapter"
 version = "0.1.0"
-description = "Add your description here"
+description = "Harbor adapter for ProcessBench (identifying the earliest process error in math solutions)"
 readme = "README.md"
 authors = [
     { name = "Jinyi Bai", email = "baijinyi@ruc.edu.cn" }
