@@ -21,7 +21,6 @@ The original evaluation (`code/run_eval.py`) extracts the last `\boxed{}` from t
 - **Prompt fidelity:** `instruction.md` is the original `critique_template.txt` filled with the same `<paragraph_i>` tagging as `prepare_input_boxed()`, byte-for-byte, plus one output-location sentence.
 - **Same grading as upstream:** `tests/grade.py` reuses the original `extract_answer` regex, `int()` conversion, and exact match. Reward is `1` or `0`.
 - **Subset-level F1:** `grade.py` also writes `/logs/verifier/metrics.json` (`id`, `subset`, `label`, `prediction`, `match`). `aggregate_metrics.py` regroups a job's trials into the original per-subset error accuracy, correct accuracy, and F1, plus the average F1.
-- **Parity split:** `--split parity` generates a 200-task stratified sample (50 per subset, keeping each subset's error/correct ratio, seed 42).
 - **Oracle:** `solve.sh` writes `\boxed{<label>}` to `/app/answer.txt`.
 - **Lightweight environment:** text-only task. The image is a stock Ubuntu 24.04 base with `WORKDIR /app` and no extra dependencies.
 
@@ -49,10 +48,8 @@ Adapter code layout:
 src/processbench/
 ├── README.md
 ├── adapter_metadata.json
-├── parity_experiment.json
 ├── pyproject.toml
 ├── run_processbench.yaml         # full dataset, oracle by default
-├── run_processbench_parity.yaml  # parity subset
 └── src/processbench/
     ├── __init__.py
     ├── adapter.py                # ProcessBenchAdapter
@@ -79,8 +76,6 @@ harbor run -d qwen/processbench
 # A specific agent and model
 harbor run -d qwen/processbench -a <agent_name> -m "<model_name>"
 
-# Parity subset (once published under the `parity` tag)
-harbor run -d qwen/processbench@parity -a <agent_name> -m "<model_name>"
 ```
 
 ### Using Job Configurations
@@ -90,9 +85,6 @@ From the repository root, after [creating the task directories](#usage-create-ta
 ```bash
 # Full dataset (oracle by default; uncomment another agent in the YAML to switch)
 harbor run -c src/processbench/run_processbench.yaml
-
-# Parity subset
-harbor run -c src/processbench/run_processbench_parity.yaml -a <agent_name> -m "<model_name>"
 
 # Without a config file
 harbor run -p datasets/processbench -a <agent_name> -m "<model_name>"
@@ -121,7 +113,6 @@ harbor trial start -p datasets/processbench/processbench-gsm8k-0 -a <agent_name>
 cd src/processbench
 uv sync
 uv run processbench --output-dir ../../datasets/processbench                 # all 3,400 tasks
-uv run processbench --split parity --output-dir ../../datasets/processbench_parity  # 200-task parity subset
 ```
 
 Available flags:
@@ -129,37 +120,8 @@ Available flags:
 - `--limit`: generate only the first N tasks after filtering
 - `--overwrite`: overwrite existing task directories
 - `--task-ids`: only generate these items; accepts upstream IDs (`gsm8k-0`) or directory names (`processbench-gsm8k-0`)
-- `--split {full,parity}`: full dataset or the stratified parity subset
 - `--subsets`: restrict to some of `gsm8k`, `math`, `olympiadbench`, `omnimath`
 - `--data-dir`: read `<subset>.json` files from a local directory instead of downloading
-
-## Comparison with Original Benchmark (Parity)
-
-TODO: parity experiments have not been run yet. The plan below must be confirmed with the Harbor team first.
-
-| Agent | Model | Metric | Number of Runs | Dataset Size | Original Benchmark Performance | Harbor Adapter Performance |
-|-------|-------|--------|------------------|--------------|------------------------------|----------------------------|
-| TODO | TODO | Average F1 | TODO | 200 (5.9% of full set) | TODO | TODO |
-
-**Planned setup:**
-- **Original side:** a fork of `QwenLM/ProcessBench` with a codex backend added to `run_eval.py`. It sends the same prompt (including the appended output sentence) to `codex exec` in a temporary directory, reads `answer.txt`, and then uses the unchanged `extract_answer` and F1 code.
-- **Harbor side:** `harbor run -c src/processbench/run_processbench_parity.yaml -a codex -m <model>`, then `aggregate_metrics.py`.
-- **Metric:** average F1 over the four subsets, with per-subset F1 reported in `parity_experiment.json`.
-- **Subset:** `--split parity`, 50 items per subset, stratified by error/correct (seed 42).
-
-Planned reproduction (commands will be finalized with the fork URL, commit, and pinned agent/model):
-
-- **Original side** (fork of `QwenLM/ProcessBench`, codex backend to be added):
-  ```bash
-  python run_eval.py --backend codex --model <model> --configs gsm8k math olympiadbench omnimath
-  ```
-- **Harbor side** (developed and oracle-verified with Harbor 0.21.0):
-  ```bash
-  cd src/processbench && uv run processbench --split parity --output-dir ../../datasets/processbench_parity && cd ../..
-  uvx --from harbor==0.21.0 harbor run -c src/processbench/run_processbench_parity.yaml -a codex -m "<model>"
-  cd src/processbench && uv run python -m processbench.aggregate_metrics ../../jobs/<job_name> \
-    --dataset-dir ../../datasets/processbench_parity
-  ```
 
 ### Oracle Verification
 
@@ -167,8 +129,8 @@ With Harbor 0.21.0 and Docker, the oracle agent scores 100% on all 3,400 tasks (
 
 ## Notes & Caveats
 
-- **Agent-based instead of direct LLM evaluation.** The original harness generates with vLLM (`temperature=0`, `seed=42`, `max_tokens=8192`) from a single user message. Here a CLI agent receives the same prompt, so scores are not directly comparable with the paper's tables. Parity compares the same agent on both sides.
-- **Prompt modification:** one sentence is appended to the original critique prompt on both sides: ``Write your final answer to the file `answer.txt` in the current working directory, in the form \boxed{index}.`` The task image sets `WORKDIR /app`, and the verifier reads `/app/answer.txt`.
+- **Agent-based instead of direct LLM evaluation.** The original harness generates with vLLM (`temperature=0`, `seed=42`, `max_tokens=8192`) from a single user message. Here a CLI agent receives the same prompt, so scores are not directly comparable with the paper's tables.
+- **Prompt modification:** the adapter appends one sentence to the original critique prompt: ``Write your final answer to the file `answer.txt` in the current working directory, in the form \boxed{index}.`` The task image sets `WORKDIR /app`, and the verifier reads `/app/answer.txt`.
 - **Answer parsing is unchanged from upstream,** including its limits. The regex `\\boxed\{([^}]*)\}` does not handle nested braces (`\boxed{\text{2}}` fails to parse), and a bare number without `\boxed{}` scores 0.
 - **F1 is a dataset-level metric.** Per-task reward is exact match. F1 has to be computed from a complete job with `aggregate_metrics.py`. Harbor's built-in mean reward is plain accuracy, which is dominated by the larger `label != -1` group.
 - **Not adapted:** the PRM evaluation path (`run_eval_prm_rlhflow.py`, which queries a process reward model one step at a time for a single `+`/`-` token) and the majority-voting mode (`--use_voting`). Neither maps onto a single agent trial.

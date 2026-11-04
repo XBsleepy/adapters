@@ -5,7 +5,6 @@ agent must identify the earliest erroneous paragraph of a step-by-step math solu
 
 import json
 import os
-import random
 import shutil
 import urllib.request
 from pathlib import Path
@@ -15,11 +14,6 @@ TEMPLATE_DIR = Path(__file__).parent / "task-template"
 SUBSETS = ["gsm8k", "math", "olympiadbench", "omnimath"]
 HF_REPO = "Qwen/ProcessBench"
 HF_REVISION = "3bdcd5371ed567559a78f559c01c13a6deee7604"
-
-# Parity subset: per subset, sample this many items stratified by error/correct.
-PARITY_PER_SUBSET = 50
-PARITY_SEED = 42
-
 
 def download_subsets(data_dir: Path, subsets: list[str]) -> None:
     """Download the pinned ProcessBench JSON files (honours HF_ENDPOINT for mirrors)."""
@@ -43,17 +37,6 @@ def tag_steps(steps: list[str]) -> str:
     return tagged_response.strip()
 
 
-def sample_parity(records: list[dict], n: int, seed: int) -> list[dict]:
-    """Stratified sample of one subset, keeping its error/correct ratio."""
-    rng = random.Random(seed)
-    errors = sorted((r for r in records if r["label"] != -1), key=lambda r: r["id"])
-    corrects = sorted((r for r in records if r["label"] == -1), key=lambda r: r["id"])
-    n_err = round(n * len(errors) / len(records))
-    chosen = rng.sample(errors, n_err) + rng.sample(corrects, n - n_err)
-    order = {r["id"]: i for i, r in enumerate(records)}
-    return sorted(chosen, key=lambda r: order[r["id"]])
-
-
 class ProcessBenchAdapter:
     def __init__(
         self,
@@ -63,7 +46,6 @@ class ProcessBenchAdapter:
         task_ids: list[str] | None = None,
         data_dir: Path | None = None,
         subsets: list[str] | None = None,
-        split: str = "full",
         **kwargs,
     ):
         self.output_dir = Path(output_dir)
@@ -72,7 +54,6 @@ class ProcessBenchAdapter:
         self.task_ids = task_ids
         self.data_dir = Path(data_dir) if data_dir else None
         self.subsets = subsets or SUBSETS
-        self.split = split
 
     @staticmethod
     def task_dir_name(item_id: str) -> str:
@@ -84,8 +65,6 @@ class ProcessBenchAdapter:
             items = json.loads((data_dir / f"{subset}.json").read_text())
             for item in items:
                 item["subset"] = subset
-            if self.split == "parity":
-                items = sample_parity(items, PARITY_PER_SUBSET, PARITY_SEED)
             records.extend(items)
         return records
 

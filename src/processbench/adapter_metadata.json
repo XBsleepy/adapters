@@ -16,14 +16,14 @@
       {
         "split": "full",
         "adapted_benchmark_size": 3400,
-        "parity_benchmark_size": 200,
-        "parity_sampling_rate": 0.0588,
+        "parity_benchmark_size": null,
+        "parity_sampling_rate": null,
         "registry_benchmark_size": 3400,
         "added_agents": [],
         "parity_matching_agents": [],
-        "parity_unmatching_agents": ["None"],
+        "parity_unmatching_agents": null,
         "parity_costs": null,
-        "notes": "Parity subset: 50 items per subset, stratified by error/correct, seed 42 (--split parity). Parity not yet run."
+        "notes": "The adapter covers all 3,400 items. Oracle verification passes all tasks."
       }
     ]
   }
