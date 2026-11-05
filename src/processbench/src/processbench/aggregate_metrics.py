@@ -10,8 +10,10 @@ Usage:
     uv run python -m processbench.aggregate_metrics <job_dir> \
         [--dataset-dir datasets/processbench] [--output results.json]
 
-With --dataset-dir, tasks that have no metrics.json (e.g. agent or verifier
-errors) are counted as wrong instead of being silently dropped.
+Wrong, missing, or unparsable answers are scored 0 by grade.py and count as
+wrong. With --dataset-dir, any expected task without a metrics.json (agent,
+infrastructure, or verifier failure) is listed and the script exits non-zero
+without reporting F1, since the job is not a complete run.
 """
 
 import argparse
@@ -68,6 +70,11 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
 
+    if not args.job_dir.is_dir():
+        sys.exit(f"Job directory not found: {args.job_dir}")
+    if args.dataset_dir is not None and not args.dataset_dir.is_dir():
+        sys.exit(f"Dataset directory not found: {args.dataset_dir}")
+
     rows = load_trials(args.job_dir)
     seen = [r["id"] for r in rows]
     duplicates = sorted({i for i in seen if seen.count(i) > 1})
@@ -77,17 +84,21 @@ def main() -> None:
             "run one attempt per task and aggregate each job separately."
         )
 
-    missing = []
     if args.dataset_dir is not None:
         expected = load_expected(args.dataset_dir)
+        if not expected:
+            sys.exit(f"No tasks (*/tests/ground_truth.json) found under {args.dataset_dir}")
         missing = sorted(set(expected) - set(seen))
-        for task_id in missing:
-            rows.append({**expected[task_id], "prediction": None, "match": False})
+        if missing:
+            sys.exit(
+                f"{len(missing)} of {len(expected)} tasks have no verifier/metrics.json "
+                f"(agent, infrastructure, or verifier failure): {', '.join(missing)}\n"
+                "The job is incomplete; not reporting F1."
+            )
     if not rows:
         sys.exit(f"No verifier/metrics.json files found under {args.job_dir}")
 
     result = aggregate(rows)
-    result["n_missing"] = len(missing)
 
     for subset, m in result["per_subset"].items():
         print(
@@ -95,8 +106,6 @@ def main() -> None:
             f"correct acc: {m['correct_acc']:.1f}, f1: {m['f1']:.1f}"
         )
     print(f"average f1: {result['avg_f1']:.1f} over {result['n_tasks']} tasks")
-    if missing:
-        print(f"{len(missing)} tasks had no metrics.json and were counted as wrong")
 
     if args.output is not None:
         args.output.write_text(json.dumps(result, indent=2) + "\n")

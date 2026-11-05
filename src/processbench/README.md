@@ -98,7 +98,7 @@ uv run python -m processbench.aggregate_metrics ../../jobs/<job_name> \
   --dataset-dir ../../datasets/processbench --output results.json
 ```
 
-This prints `error acc`, `correct acc`, and `f1` for each subset, as `run_eval.py` does, plus the average F1. With `--dataset-dir`, tasks without a verifier result (agent or infrastructure errors) count as wrong. Aggregate each run (job) separately, with one attempt per task.
+This prints `error acc`, `correct acc`, and `f1` for each subset, as `run_eval.py` does, plus the average F1. Wrong, missing, or unparsable answers score 0 and count as wrong. With `--dataset-dir`, tasks without a verifier result (agent, infrastructure, or verifier failures) are listed and the script exits non-zero without reporting F1: an incomplete job is not a full parity result, so fix or rerun those trials first. Aggregate each run (job) separately, with one attempt per task.
 
 ### Running Individual Trial
 
