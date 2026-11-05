@@ -1,11 +1,11 @@
-## ProcessBench → Harbor Adapter
+# ProcessBench → Harbor Adapter
 
 ## Overview
 
 This adapter converts [ProcessBench](https://github.com/QwenLM/ProcessBench) (ACL 2025) into Harbor tasks. Each task shows the agent a competition-style math problem together with a step-by-step solution split into indexed paragraphs, and asks for the index of the **earliest erroneous paragraph**, or `-1` if every paragraph is correct.
 
 - **Size:** 3,400 tasks, one per ProcessBench item: `gsm8k` (400), `math` (1,000), `olympiadbench` (1,000), `omnimath` (1,000). No items are excluded.
-- **Source:** Hugging Face dataset [`Qwen/ProcessBench`](https://huggingface.co/datasets/Qwen/ProcessBench), pinned to revision `3bdcd5371ed567559a78f559c01c13a6deee7604`.
+- **Source:** Hugging Face dataset [`Qwen/ProcessBench`](https://huggingface.co/datasets/Qwen/ProcessBench), pinned to revision `3bdcd5371ed567559a78f559c01c13a6deee7604`. The prompt and grading follow the upstream code at commit [`e802463`](https://github.com/QwenLM/ProcessBench/tree/e8024636bcabdf8bd514440551b531d3f90dd18b): [`code/run_eval.py`](https://github.com/QwenLM/ProcessBench/blob/e8024636bcabdf8bd514440551b531d3f90dd18b/code/run_eval.py) and [`code/templates/critique_template.txt`](https://github.com/QwenLM/ProcessBench/blob/e8024636bcabdf8bd514440551b531d3f90dd18b/code/templates/critique_template.txt).
 - **Domain / language:** mathematical reasoning, English.
 - **Main adaptation:** the original harness calls the model directly via vLLM. Here the same prompt is given to a CLI agent, with one appended sentence asking it to write the answer to `answer.txt` (see [Notes & Caveats](#notes--caveats)).
 
@@ -126,6 +126,10 @@ Available flags:
 ### Oracle Verification
 
 With Harbor 0.21.0 and Docker, the oracle agent scores 100% on all 3,400 tasks (0 exceptions). `aggregate_metrics.py` reports error acc, correct acc, and F1 of 100.0 for every subset, with 0 missing tasks. Running the `nop` agent (no answer written) gives reward 0, which confirms the verifier does not pass empty submissions.
+
+## Comparison with Original Benchmark (Parity)
+
+No parity results yet. Parity experiments will be run after the first review: the agent, model, parity subset, and number of runs will be agreed with the Harbor team, and the results and reproduction scripts for both sides will be added here.
 
 ## Notes & Caveats
 
