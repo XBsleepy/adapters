@@ -23,6 +23,7 @@ The original evaluation (`code/run_eval.py`) extracts the last `\boxed{}` from t
 - **Subset-level F1:** `grade.py` also writes `/logs/verifier/metrics.json` (`id`, `subset`, `label`, `prediction`, `match`). `aggregate_metrics.py` regroups a job's trials into the original per-subset error accuracy, correct accuracy, and F1, plus the average F1.
 - **Oracle:** `solve.sh` writes `\boxed{<label>}` to `/app/answer.txt`.
 - **Lightweight environment:** text-only task. The image is a stock Ubuntu 24.04 base with `WORKDIR /app` and no extra dependencies.
+- **Isolation:** upstream generates offline with no tools or network, so during the agent run only the LLM APIs (`api.openai.com`, `api.anthropic.com`) are reachable (`[agent] network_mode = "allowlist"`). Grading runs in a separate verifier container (`environment_mode = "separate"`, no network) built from `tests/Dockerfile`. Only `/app/answer.txt` is copied into it, so the agent never sees `ground_truth.json` or the grader, and `test.sh` clears any existing reward/metrics files before grading.
 
 ## Generated Task Structure
 
@@ -35,7 +36,8 @@ datasets/processbench/
 │   │   └── Dockerfile
 │   ├── solution/
 │   │   └── solve.sh              # writes \boxed{<label>} to /app/answer.txt
-│   └── tests/
+│   └── tests/                    # verifier build context, never mounted in the agent container
+│       ├── Dockerfile            # separate verifier image
 │       ├── test.sh               # runs grade.py, writes /logs/verifier/reward.txt
 │       ├── grade.py              # original extract_answer + exact match
 │       └── ground_truth.json     # {"id", "subset", "label"} (not visible to the agent)
@@ -60,7 +62,7 @@ src/processbench/
         ├── instruction.md
         ├── environment/Dockerfile
         ├── solution/solve.sh
-        └── tests/{test.sh, grade.py}
+        └── tests/{Dockerfile, test.sh, grade.py}
 ```
 
 ## Run Evaluation / Harness
@@ -150,12 +152,13 @@ No parity results yet. Parity experiments will be run after the first review: th
   uv sync
   ```
 - Network access to Hugging Face for the first run, or set `HF_ENDPOINT` (e.g. `https://hf-mirror.com`), or pass `--data-dir` with local copies of the four JSON files.
-- API keys for the agent/model you run (e.g. `OPENAI_API_KEY` for codex).
+- API keys for the agent/model you run (e.g. `OPENAI_API_KEY` for codex). If the agent talks to an endpoint other than `api.openai.com` / `api.anthropic.com` (relay, proxy, other provider), allow it with `harbor run --allow-agent-host <host>`, or the agent's requests are blocked.
 
 ## Troubleshooting
 
 - **Download fails or hangs:** set `HF_ENDPOINT=https://hf-mirror.com`, or download the dataset with `hf download Qwen/ProcessBench --repo-type dataset --revision 3bdcd5371ed567559a78f559c01c13a6deee7604 --local-dir <dir>` and pass `--data-dir <dir>`.
-- **Reward 0 with an apparently correct answer:** check `verifier/test-stdout.txt` in the trial directory. It prints the parsed prediction. A common cause is a missing `\boxed{}` or `answer.txt` written outside `/app`.
+- **Reward 0 with an apparently correct answer:** check `verifier/test-stdout.txt` in the trial directory. It prints the parsed prediction. A common cause is a missing `\boxed{}` or `answer.txt` written outside `/app` (only `/app/answer.txt` is copied to the verifier).
+- **Agent fails with connection errors:** its API host is not in the allowlist; pass `--allow-agent-host <host>`.
 - **`aggregate_metrics.py` reports duplicate trials:** the job used more than one attempt per task. Aggregate jobs with `n_attempts: 1`, one run at a time.
 
 ## Citation

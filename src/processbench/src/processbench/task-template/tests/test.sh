@@ -7,4 +7,6 @@
 set -euo pipefail
 
 mkdir -p /logs/verifier
+# Clear any pre-existing results so only this grading run can set the reward.
+rm -f /logs/verifier/reward.txt /logs/verifier/reward.json /logs/verifier/metrics.json
 python3 /tests/grade.py
