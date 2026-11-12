@@ -100,7 +100,9 @@ uv run python -m processbench.aggregate_metrics ../../jobs/<job_name> \
   --dataset-dir ../../datasets/processbench --output results.json
 ```
 
-This prints `error acc`, `correct acc`, and `f1` for each subset, as `run_eval.py` does, plus the average F1. Wrong, missing, or unparsable answers score 0 and count as wrong. With `--dataset-dir`, tasks without a verifier result (agent, infrastructure, or verifier failures) are listed and the script exits non-zero without reporting F1: an incomplete job is not a full parity result, so fix or rerun those trials first. Aggregate each run (job) separately, with one attempt per task.
+This prints `error acc`, `correct acc`, and `f1` for each subset, as `run_eval.py` does, plus the average F1. Each trial's final `result.json` must record trial and verifier completion, a binary verifier reward consistent with `metrics.json`, and the same task ID. Provider errors (including server errors, rate limits, account usage limits, authentication, and network failures) and unclassified exceptions are listed and cause a non-zero exit without reporting F1, even when grading produced metrics. They are not counted as model mistakes or silently removed from the denominator.
+
+The scoring policy retains finished, scored attempts with `AgentTimeoutError` (the allotted time expired), `OutputTokenExceededError`, `ContextWindowExceededError`, or `AgentSafetyRefusalError` as valid experiment outcomes. Their verifier scores are preserved. Wrong, missing, or unparsable answers in valid attempts score 0 and count as wrong. With `--dataset-dir`, any expected task without metrics also prevents F1: an incomplete job is not a full parity result, so fix or rerun those trials first. Aggregate each run (job) separately, with one attempt per task.
 
 ### Running Individual Trial
 

@@ -10,10 +10,10 @@ Usage:
     uv run python -m processbench.aggregate_metrics <job_dir> \
         [--dataset-dir datasets/processbench] [--output results.json]
 
-Wrong, missing, or unparsable answers are scored 0 by grade.py and count as
-wrong. With --dataset-dir, any expected task without a metrics.json (agent,
-infrastructure, or verifier failure) is listed and the script exits non-zero
-without reporting F1, since the job is not a complete run.
+Wrong, missing, or unparsable answers from valid scored attempts count as wrong.
+Every trial must have a finished result.json and a consistent verifier reward.
+Infrastructure and unclassified failures prevent aggregation, even if the
+verifier wrote metrics.json. With --dataset-dir, missing tasks also prevent F1.
 """
 
 import argparse
@@ -22,12 +22,65 @@ import sys
 from pathlib import Path
 
 
+# These are experiment outcomes, unlike provider/account/transport failures.
+VALID_OUTCOME_EXCEPTIONS = {
+    "AgentTimeoutError",
+    "OutputTokenExceededError",
+    "ContextWindowExceededError",
+    "AgentSafetyRefusalError",
+}
+
+
 def load_trials(job_dir: Path) -> list[dict]:
     rows = []
-    for path in sorted(job_dir.glob("*/verifier/metrics.json")):
-        row = json.loads(path.read_text())
-        row["trial"] = path.parents[1].name
-        rows.append(row)
+    problems = []
+    for trial in sorted(job_dir.iterdir()):
+        metrics_path = trial / "verifier/metrics.json"
+        result_path = trial / "result.json"
+        if not trial.is_dir() or not any(
+            p.exists() for p in (metrics_path, result_path, trial / "config.json")
+        ):
+            continue
+        task = trial.name
+        try:
+            result = json.loads(result_path.read_text())
+            if not isinstance(result, dict):
+                raise ValueError("result.json must contain an object")
+            task = result.get("task_name") or trial.name
+            if not result.get("finished_at"):
+                raise ValueError("trial has not finished")
+            exception = result.get("exception_info")
+            if exception is not None:
+                if not isinstance(exception, dict):
+                    raise ValueError("invalid exception_info")
+                kind = exception.get("exception_type")
+                if kind not in VALID_OUTCOME_EXCEPTIONS:
+                    raise ValueError(f"infrastructure or unclassified failure: {kind}")
+            verifier = result.get("verifier") or {}
+            if not isinstance(verifier, dict) or not verifier.get("finished_at"):
+                raise ValueError("verifier has not finished")
+            scored = result.get("verifier_result") or {}
+            rewards = scored.get("rewards") if isinstance(scored, dict) else None
+            reward = rewards.get("reward") if isinstance(rewards, dict) else None
+            if type(reward) not in (int, float) or reward not in (0, 1):
+                raise ValueError("missing or invalid verifier reward")
+            row = json.loads(metrics_path.read_text())
+            if not isinstance(row, dict) or type(row.get("match")) is not bool:
+                raise ValueError("metrics.json must contain a boolean match")
+            if task != f"qwen/processbench__{row.get('id')}":
+                raise ValueError("metrics task ID does not match result.json")
+            if reward != int(row["match"]):
+                raise ValueError("verifier reward disagrees with metrics.json")
+            row["trial"] = trial.name
+            rows.append(row)
+        except (OSError, ValueError) as exc:
+            problems.append(f"{task} [{trial.name}]: {exc}")
+    if problems:
+        raise ValueError(
+            f"{len(problems)} invalid or unfinished trials:\n"
+            + "\n".join(problems)
+            + "\nThe job contains invalid attempts; not reporting F1."
+        )
     return rows
 
 
@@ -75,7 +128,10 @@ def main() -> None:
     if args.dataset_dir is not None and not args.dataset_dir.is_dir():
         sys.exit(f"Dataset directory not found: {args.dataset_dir}")
 
-    rows = load_trials(args.job_dir)
+    try:
+        rows = load_trials(args.job_dir)
+    except ValueError as exc:
+        sys.exit(str(exc))
     seen = [r["id"] for r in rows]
     duplicates = sorted({i for i in seen if seen.count(i) > 1})
     if duplicates:
