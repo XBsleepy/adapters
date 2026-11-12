@@ -127,7 +127,7 @@ Available flags:
 
 ### Oracle Verification
 
-With Harbor 0.21.0 and Docker, the oracle agent scores 100% on all 3,400 tasks (0 exceptions). `aggregate_metrics.py` reports error acc, correct acc, and F1 of 100.0 for every subset, with 0 missing tasks. Running the `nop` agent (no answer written) gives reward 0, which confirms the verifier does not pass empty submissions.
+On 2026-11-12, a full-dataset oracle run of adapter commit `0384eff` verified the current separate-verifier packaging (`COPY . /tests/`) across all 3,400 tasks: 400 gsm8k, 1,000 math, 1,000 olympiadbench, and 1,000 omnimath. All tasks received reward 1, with 0 exceptions and 0 retries. Every trial's task ID, ground-truth label, answer artifact, and reward were audited, with no missing or problematic trials. `aggregate_metrics.py` reported error accuracy, correct accuracy, and F1 of 100.0 for every subset, and average F1 of 100.0. On the test host, a Docker/BuildKit context-transfer issue was avoided by prebuilding verifier images from compressed-tar contexts, checking their file hashes, and selecting the verified immutable image IDs through `[verifier.environment].docker_image`. A prior `nop` control received reward 0.
 
 ## Comparison with Original Benchmark (Parity)
 
