@@ -1,0 +1,26 @@
+[
+  {
+    "adapter_name": "processbench",
+    "agent": "<agent>@<version>",
+    "model": "<model>",
+    "date": "YYYY-MM-DD",
+    "adapted_benchmark_size": 3400,
+    "parity_benchmark_size": null,
+    "number_of_runs": null,
+    "notes": "Placeholder. Parity has not been run; the plan will be agreed with the Harbor team.",
+    "original_parity_repo": null,
+    "adapter_pr": ["https://github.com/harbor-framework/adapters/pull/70"],
+    "dataset_pr": null,
+    "parity_pr": null,
+    "metrics": [
+      {
+        "benchmark_name": "ProcessBench",
+        "metric": "Average F1",
+        "original": null,
+        "harbor": null,
+        "original_runs": [],
+        "harbor_runs": []
+      }
+    ]
+  }
+]

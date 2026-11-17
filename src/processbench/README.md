@@ -50,6 +50,7 @@ Adapter code layout:
 src/processbench/
 ├── README.md
 ├── adapter_metadata.json
+├── parity_experiment.json
 ├── pyproject.toml
 ├── run_processbench.yaml         # full dataset, oracle by default
 └── src/processbench/
@@ -134,6 +135,10 @@ On 2026-11-12, a full-dataset oracle run of adapter commit `0384eff` verified th
 ## Comparison with Original Benchmark (Parity)
 
 No parity results yet. Parity experiments will be run after the first review: the agent, model, parity subset, and number of runs will be agreed with the Harbor team, and the results and reproduction scripts for both sides will be added here.
+
+| Agent | Model | Metric | Number of Runs | Dataset Size | Original Benchmark Performance | Harbor Adapter Performance |
+|-------|-------|--------|------------------|--------------|------------------------------|----------------------------|
+| TBD | TBD | Average F1 | TBD | TBD | TBD | TBD |
 
 ## Notes & Caveats
 
