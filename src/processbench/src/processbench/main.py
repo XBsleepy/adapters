@@ -41,6 +41,12 @@ def main() -> None:
         help="Only generate these task IDs",
     )
     parser.add_argument(
+        "--split",
+        choices=["full", "parity"],
+        default="full",
+        help="full: all 3,400 items; parity: stratified 50-per-subset sample",
+    )
+    parser.add_argument(
         "--subsets",
         nargs="+",
         choices=SUBSETS,
@@ -62,6 +68,7 @@ def main() -> None:
         task_ids=args.task_ids,
         data_dir=args.data_dir,
         subsets=args.subsets,
+        split=args.split,
     )
 
     adapter.run()
