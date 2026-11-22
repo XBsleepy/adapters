@@ -24,7 +24,7 @@ The original evaluation (`code/run_eval.py`) extracts the last `\boxed{}` from t
 - **Parity split:** `--split parity` generates a 200-task stratified sample (50 per subset, keeping each subset's error/correct ratio, seed 42).
 - **Oracle:** `solve.sh` writes `\boxed{<label>}` to `/app/answer.txt`.
 - **Lightweight environment:** text-only task. The image is a stock Ubuntu 24.04 base with `WORKDIR /app` and no extra dependencies.
-- **Isolation:** upstream generates offline with no tools or network, so during the agent run only the LLM APIs (`api.openai.com`, `api.anthropic.com`) are reachable (`[agent] network_mode = "allowlist"`). Grading runs in a separate verifier container (`environment_mode = "separate"`, no network) built from `tests/Dockerfile`. Only `/app/answer.txt` is copied into it, so the agent never sees `ground_truth.json` or the grader, and `test.sh` clears any existing reward/metrics files before grading.
+- **Isolation:** upstream generates offline with no tools or network, so during the agent run only the LLM APIs (`api.openai.com`, `api.anthropic.com`) are reachable (`[agent] network_mode = "allowlist"`). Grading runs in a separate verifier container (`environment_mode = "separate"`, no network) built from `tests/Dockerfile`. Only `/app/answer.txt` is copied into it, so the agent never sees `ground_truth.<id>.json` or the grader, and `test.sh` clears any existing reward/metrics files before grading.
 
 ## Generated Task Structure
 
@@ -41,7 +41,7 @@ datasets/processbench/
 │       ├── Dockerfile            # separate verifier image
 │       ├── test.sh               # runs grade.py, writes /logs/verifier/reward.txt
 │       ├── grade.py              # original extract_answer + exact match
-│       └── ground_truth.json     # {"id", "subset", "label"} (not visible to the agent)
+│       └── ground_truth.<id>.json  # {"id", "subset", "label"} (not visible to the agent)
 └── ...
 ```
 
@@ -143,33 +143,59 @@ On 2026-11-12, a full-dataset oracle run of adapter commit `0384eff` verified th
 
 ## Comparison with Original Benchmark (Parity)
 
-TODO: parity experiments have not been run yet. The plan below must be confirmed with the Harbor team first.
+Both sides ran `codex@0.161.0` with `gpt-5.6-terra` (reasoning effort `xhigh`) on the 200-task parity subset, 3 runs each (2026-11-22 and 2026-11-23). The setup was confirmed with the Harbor team before running. Scores are mean ± sample SEM over the 3 runs; the individual run scores are in `parity_experiment.json`.
 
-| Agent | Model | Metric | Number of Runs | Dataset Size | Original Benchmark Performance | Harbor Adapter Performance |
-|-------|-------|--------|------------------|--------------|------------------------------|----------------------------|
-| TODO | TODO | Average F1 | TODO | 200 (5.9% of full set) | TODO | TODO |
+| Agent | Model | Metric | Runs | Dataset Size | Original (mean ± SEM) | Harbor (mean ± SEM) |
+|-------|-------|--------|------|--------------|-----------------------|---------------------|
+| codex@0.161.0 | gpt-5.6-terra | Average F1 | 3 | 200 (5.9% of full set) | 78.48 ± 0.95 | 78.78 ± 0.38 |
+| codex@0.161.0 | gpt-5.6-terra | Average accuracy | 3 | 200 (5.9% of full set) | 79.17 ± 0.60 | 79.00 ± 0.29 |
+| codex@0.161.0 | gpt-5.6-terra | Average error accuracy | 3 | 200 (5.9% of full set) | 77.15 ± 0.44 | 75.71 ± 0.49 |
+| codex@0.161.0 | gpt-5.6-terra | Average correct accuracy | 3 | 200 (5.9% of full set) | 81.00 ± 1.59 | 83.44 ± 0.35 |
 
-**Planned setup:**
-- **Original side:** [`XBsleepy/ProcessBench@codex-backend`](https://github.com/XBsleepy/ProcessBench/tree/codex-backend), a fork of `QwenLM/ProcessBench` that adds `--backend codex` to `code/run_eval.py`. It sends the same prompt (including the appended output sentence) to `codex exec` in a temporary directory, reads `answer.txt`, and then uses the unchanged `extract_answer` and F1 code.
-- **Harbor side:** `harbor run -c src/processbench/run_processbench_parity.yaml -a codex -m <model>`, then `aggregate_metrics.py`.
-- **Metric:** average F1 over the four subsets, with per-subset F1 reported in `parity_experiment.json`.
-- **Subset:** `--split parity`, 50 items per subset, stratified by error/correct (seed 42).
+Metric definitions: **error accuracy** is exact-match accuracy on samples with a process error (`label != -1`), **correct accuracy** is accuracy on fully correct samples (`label == -1`), **F1** is their harmonic mean, and **accuracy** is exact-match accuracy over all samples. The averages are over the four subsets (50 samples each). Average F1 is the headline number reported by upstream's `run_eval.py`.
 
-Planned reproduction (the agent version and model will be pinned once agreed):
+Per subset (mean ± SEM):
 
-- **Original side** ([`XBsleepy/ProcessBench@codex-backend`](https://github.com/XBsleepy/ProcessBench/tree/codex-backend); see its README for options):
+| Subset | F1 Original | F1 Harbor | Acc Original | Acc Harbor | Error acc Original | Error acc Harbor | Correct acc Original | Correct acc Harbor |
+|--------|-------------|-----------|--------------|------------|--------------------|------------------|----------------------|--------------------|
+| gsm8k | 84.27 ± 1.34 | 82.22 ± 1.19 | 85.33 ± 1.33 | 84.00 ± 1.15 | 74.36 ± 1.28 | 70.51 ± 1.28 | 97.22 ± 1.39 | 98.61 ± 1.39 |
+| math | 80.39 ± 0.83 | 80.39 ± 0.83 | 82.00 ± 1.15 | 82.00 ± 1.15 | 86.67 ± 1.92 | 86.67 ± 1.92 | 75.00 ± 0.00 | 75.00 ± 0.00 |
+| olympiadbench | 78.36 ± 0.56 | 77.78 ± 1.14 | 77.33 ± 0.67 | 76.67 ± 1.33 | 74.75 ± 1.01 | 73.74 ± 2.02 | 82.35 ± 0.00 | 82.35 ± 0.00 |
+| omnimath | 70.90 ± 3.50 | 74.72 ± 1.75 | 72.00 ± 2.31 | 73.33 ± 1.33 | 72.81 ± 1.75 | 71.93 ± 0.88 | 69.44 ± 5.56 | 77.78 ± 2.78 |
+
+The run-score ranges of the two sides overlap for all 20 reported metrics, so the sides match under the repository's [matching criterion](../../docs/adapters.mdx#matching-criterion). The parity subset has only 12 to 24 fully correct samples per subset, so correct accuracy moves in steps of 4 to 8 points per item and is the noisiest metric (for example omnimath original-side runs range from 58.3 to 75.0).
+
+A per-task comparison of all 200 items (original 3 runs against Harbor 3 runs) shows no one-sided pattern: the two sides have the same number of correct runs on most items, and the items where one side is better split almost evenly. Average accuracy differs by 0.2 points.
+
+**Setup:**
+- **Original side:** [`XBsleepy/ProcessBench@codex-backend`](https://github.com/XBsleepy/ProcessBench/tree/codex-backend), a fork of `QwenLM/ProcessBench` that adds `--backend codex` to `code/run_eval.py`. It sends the same prompt (including the appended output sentence) to `codex exec` in a fresh working directory and `CODEX_HOME`, reads `answer.txt`, and then uses the unchanged `extract_answer` and F1 code.
+- **Harbor side:** `harbor run -c src/processbench/run_processbench_parity.yaml -a codex -m <model>`, then `aggregate_metrics.py`. Harbor 0.21.0 on Daytona (1 CPU and 2 GB per sandbox, as declared by the tasks), 32 concurrent trials, unmodified adapter output, codex installed by Harbor.
+- **Subset:** `--split parity`, 50 items per subset, stratified by error/correct (seed 42). The fork's `code/parity_ids.txt` lists the same 200 IDs.
+- **Agent and model:** `codex@0.161.0` and `gpt-5.6-terra` on both sides, reasoning effort `xhigh`, through an OpenAI-compatible relay.
+- **Identical prompt, one asymmetry:** the task prompt sent to codex is byte-identical on all 200 items. codex adds its own environment context to the first message, which differs between sides (working directory `/tmp/processbench-codex-*/work` against `/app`, timezone `Asia/Shanghai` against `UTC`).
+- **Retries:** Harbor retries only infrastructure errors (`retry.max_retries = 2`). One run had 5 retries, all `AgentSetupTimeoutError` during the codex installation, and no trial ended with an error.
+
+Links: [original benchmark](https://github.com/QwenLM/ProcessBench), [fork with codex backend](https://github.com/XBsleepy/ProcessBench/tree/codex-backend), [adapter PR](https://github.com/harbor-framework/adapters/pull/70). Dataset PR and parity-experiments PR: not created yet.
+
+Reproduction:
+
+- **Original side** ([`XBsleepy/ProcessBench@codex-backend`](https://github.com/XBsleepy/ProcessBench/tree/codex-backend); see its README for options). Install `codex@0.161.0` and put your provider settings in a `config.toml`:
   ```bash
   git clone -b codex-backend https://github.com/XBsleepy/ProcessBench.git && cd ProcessBench/code
-  python run_eval.py --backend codex --model <model> --ids_file parity_ids.txt \
-    --configs gsm8k math olympiadbench omnimath
+  python run_eval.py --backend codex --model gpt-5.6-terra --codex_config <config.toml> \
+    --ids_file parity_ids.txt --n_concurrent 8 --output_dir <out_dir>
   ```
-- **Harbor side** (developed and oracle-verified with Harbor 0.21.0):
+  The data is downloaded from the Hugging Face dataset `Qwen/ProcessBench`. Run it three times with different `--output_dir` values.
+- **Harbor side** (Harbor 0.21.0, oracle-verified):
   ```bash
   cd src/processbench && uv run processbench --split parity --output-dir ../../datasets/processbench_parity && cd ../..
-  uvx --from harbor==0.21.0 harbor run -c src/processbench/run_processbench_parity.yaml -a codex -m "<model>"
+  uvx --from harbor==0.21.0 harbor run -p datasets/processbench_parity -a codex -m "openai/gpt-5.6-terra" \
+    --ak version=0.161.0 --ak config=<config.toml> --env daytona -n 32 --max-retries 2 \
+    --allow-agent-host <your provider host> --env-file <file with DAYTONA_API_KEY and OPENAI_API_KEY>
   cd src/processbench && uv run python -m processbench.aggregate_metrics ../../jobs/<job_name> \
     --dataset-dir ../../datasets/processbench_parity
   ```
+  The agent network allowlist covers only the OpenAI and Anthropic APIs, so a relay host has to be added with `--allow-agent-host`. Running with `--env docker` also works.
 
 ## Notes & Caveats
 
