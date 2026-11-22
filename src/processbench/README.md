@@ -175,7 +175,7 @@ A per-task comparison of all 200 items (original 3 runs against Harbor 3 runs) s
 - **Identical prompt, one asymmetry:** the task prompt sent to codex is byte-identical on all 200 items. codex adds its own environment context to the first message, which differs between sides (working directory `/tmp/processbench-codex-*/work` against `/app`, timezone `Asia/Shanghai` against `UTC`).
 - **Retries:** Harbor retries only infrastructure errors (`retry.max_retries = 2`). One run had 5 retries, all `AgentSetupTimeoutError` during the codex installation, and no trial ended with an error.
 
-Links: [original benchmark](https://github.com/QwenLM/ProcessBench), [fork with codex backend](https://github.com/XBsleepy/ProcessBench/tree/codex-backend), [adapter PR](https://github.com/harbor-framework/adapters/pull/70). [dataset PR](https://github.com/harbor-framework/harbor-datasets/pull/292). Parity-experiments PR: not created yet.
+Links: [original benchmark](https://github.com/QwenLM/ProcessBench), [fork with codex backend](https://github.com/XBsleepy/ProcessBench/tree/codex-backend), [adapter PR](https://github.com/harbor-framework/adapters/pull/70), [dataset PR](https://github.com/harbor-framework/harbor-datasets/pull/292). Parity-experiments PR: pending.
 
 Reproduction:
 
