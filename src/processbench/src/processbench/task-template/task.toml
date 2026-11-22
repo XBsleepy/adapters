@@ -26,7 +26,7 @@ has_error = {has_error}
 generator = "{generator}"
 
 # Grading runs in its own container built from tests/Dockerfile, so the agent
-# never sees the label in tests/ground_truth.json and cannot touch the grader.
+# never sees the label in tests/ground_truth.<id>.json and cannot touch the grader.
 [verifier]
 timeout_sec = 60.0
 environment_mode = "separate"

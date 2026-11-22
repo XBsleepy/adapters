@@ -86,7 +86,7 @@ def load_trials(job_dir: Path) -> list[dict]:
 
 def load_expected(dataset_dir: Path) -> dict[str, dict]:
     expected = {}
-    for path in sorted(dataset_dir.glob("*/tests/ground_truth.json")):
+    for path in sorted(dataset_dir.glob("*/tests/ground_truth.*.json")):
         gt = json.loads(path.read_text())
         expected[gt["id"]] = gt
     return expected
@@ -143,7 +143,7 @@ def main() -> None:
     if args.dataset_dir is not None:
         expected = load_expected(args.dataset_dir)
         if not expected:
-            sys.exit(f"No tasks (*/tests/ground_truth.json) found under {args.dataset_dir}")
+            sys.exit(f"No tasks (*/tests/ground_truth.<id>.json) found under {args.dataset_dir}")
         missing = sorted(set(expected) - set(seen))
         if missing:
             sys.exit(

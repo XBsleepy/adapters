@@ -138,7 +138,7 @@ class AggregateMetricsTests(unittest.TestCase):
         dataset = Path(self.temporary.name) / "dataset"
         tests = dataset / "processbench-gsm8k-1/tests"
         tests.mkdir(parents=True)
-        (tests / "ground_truth.json").write_text(json.dumps({"id": "gsm8k-1"}))
+        (tests / "ground_truth.gsm8k-1.json").write_text(json.dumps({"id": "gsm8k-1"}))
         run = self.run_cli("--dataset-dir", str(dataset))
         self.assertNotEqual(run.returncode, 0)
         self.assertIn("gsm8k-1", run.stderr)

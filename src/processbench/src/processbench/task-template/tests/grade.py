@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 ANSWER_PATH = Path("/app/answer.txt")
-GROUND_TRUTH_PATH = Path("/tests/ground_truth.json")
+TESTS_DIR = Path("/tests")
 VERIFIER_DIR = Path("/logs/verifier")
 
 
@@ -21,8 +21,28 @@ def extract_answer(solution_text: str):
     return None
 
 
+def load_ground_truth(tests_dir: Path = TESTS_DIR) -> dict:
+    """Load this task's label from `ground_truth.<task id>.json`.
+
+    The task ID is in the file name so that no two tasks share a path in their
+    verifier image build contexts (see adapter.py). Exactly one such file must
+    exist and its content must carry the same ID as its name.
+    """
+    paths = sorted(tests_dir.glob("ground_truth.*.json"))
+    if len(paths) != 1:
+        raise SystemExit(
+            f"expected exactly one ground_truth.<id>.json in {tests_dir}, found "
+            f"{[p.name for p in paths]}"
+        )
+    gt = json.loads(paths[0].read_text())
+    name_id = paths[0].name[len("ground_truth.") : -len(".json")]
+    if gt.get("id") != name_id:
+        raise SystemExit(f"{paths[0].name} contains id {gt.get('id')!r}")
+    return gt
+
+
 def main() -> None:
-    gt = json.loads(GROUND_TRUTH_PATH.read_text())
+    gt = load_ground_truth()
 
     if ANSWER_PATH.is_file():
         response = ANSWER_PATH.read_text(errors="replace")

@@ -134,7 +134,14 @@ class ProcessBenchAdapter:
             "subset": record["subset"],
             "label": record["label"],
         }
-        (task_dir / "tests/ground_truth.json").write_text(
+        # The file name carries the task ID on purpose. Harbor builds every
+        # task's verifier image from a context directory named `tests`, and
+        # Docker/BuildKit can reuse a file from another task's context when the
+        # path, size and mtime match. All task IDs of one subset have
+        # same-size ground truth files created within milliseconds of each
+        # other, so a shared name could ship another task's label. A unique
+        # path cannot collide.
+        (task_dir / f"tests/ground_truth.{record['id']}.json").write_text(
             json.dumps(ground_truth) + "\n"
         )
 
