@@ -25,6 +25,7 @@ The original evaluation (`code/run_eval.py`) extracts the last `\boxed{}` from t
 - **Oracle:** `solve.sh` writes `\boxed{<label>}` to `/app/answer.txt`.
 - **Lightweight environment:** text-only task. The image is a stock Ubuntu 24.04 base with `WORKDIR /app` and no extra dependencies.
 - **Isolation:** upstream generates offline with no tools or network, so during the agent run only the LLM APIs (`api.openai.com`, `api.anthropic.com`) are reachable (`[agent] network_mode = "allowlist"`). Grading runs in a separate verifier container (`environment_mode = "separate"`, no network) built from `tests/Dockerfile`. Only `/app/answer.txt` is copied into it, so the agent never sees `ground_truth.<id>.json` or the grader, and `test.sh` clears any existing reward/metrics files before grading.
+- **Unique label file name:** the label is stored as `tests/ground_truth.<id>.json`, and `grade.py` requires exactly one such file whose `id` matches its name. Harbor builds every verifier image from a context directory named `tests`, and Docker/BuildKit can reuse a file from another task's context when its path, size and mtime match, which would give a verifier another task's label. A unique file name rules this out.
 
 ## Generated Task Structure
 
@@ -139,7 +140,7 @@ Available flags:
 
 ### Oracle Verification
 
-On 2026-11-12, a full-dataset oracle run of adapter commit `0384eff` verified the current separate-verifier packaging (`COPY . /tests/`) across all 3,400 tasks: 400 gsm8k, 1,000 math, 1,000 olympiadbench, and 1,000 omnimath. All tasks received reward 1, with 0 exceptions and 0 retries. Every trial's task ID, ground-truth label, answer artifact, and reward were audited, with no missing or problematic trials. `aggregate_metrics.py` reported error accuracy, correct accuracy, and F1 of 100.0 for every subset, and average F1 of 100.0. On the test host, a Docker/BuildKit context-transfer issue was avoided by prebuilding verifier images from compressed-tar contexts, checking their file hashes, and selecting the verified immutable image IDs through `[verifier.environment].docker_image`. A prior `nop` control received reward 0.
+On 2026-11-23, a full-dataset oracle run of adapter commit `1467787` passed all 3,400 tasks: 400 gsm8k, 1,000 math, 1,000 olympiadbench, and 1,000 omnimath. That commit stores each task's label as `tests/ground_truth.<id>.json` (see [Adapter Features](#adapter-features)), and the adapter code, task template and tests are unchanged since. A `nop` control (no answer written) receives reward 0.
 
 ## Comparison with Original Benchmark (Parity)
 
