@@ -143,7 +143,7 @@ On 2026-11-12, a full-dataset oracle run of adapter commit `0384eff` verified th
 
 ## Comparison with Original Benchmark (Parity)
 
-Both sides ran `codex@0.161.0` with `gpt-5.6-terra` (reasoning effort `xhigh`) on the 200-task parity subset, 3 runs each (2026-11-22 and 2026-11-23). The setup was confirmed with the Harbor team before running. Scores are mean ± sample SEM over the 3 runs; the individual run scores are in `parity_experiment.json`.
+Both sides ran `codex@0.161.0` with `gpt-5.6-terra` (reasoning effort `xhigh`) on the 200-task parity subset, 3 runs each (2026-11-22 and 2026-11-23). Scores are mean ± sample SEM over the 3 runs; the individual run scores are in `parity_experiment.json`.
 
 | Agent | Model | Metric | Runs | Dataset Size | Original (mean ± SEM) | Harbor (mean ± SEM) |
 |-------|-------|--------|------|--------------|-----------------------|---------------------|
@@ -165,7 +165,7 @@ Per subset (mean ± SEM):
 
 The run-score ranges of the two sides overlap for all 20 reported metrics, so the sides match under the repository's [matching criterion](../../docs/adapters.mdx#matching-criterion). The parity subset has only 12 to 24 fully correct samples per subset, so correct accuracy moves in steps of 4 to 8 points per item and is the noisiest metric (for example omnimath original-side runs range from 58.3 to 75.0).
 
-A per-task comparison of all 200 items (original 3 runs against Harbor 3 runs) shows no one-sided pattern: the two sides have the same number of correct runs on most items, and the items where one side is better split almost evenly. Average accuracy differs by 0.2 points.
+A per-task comparison of all 200 items (original 3 runs against Harbor 3 runs) shows no one-sided pattern: 186 items have the same number of correct runs on both sides, the other 14 split 8 in favor of the original side and 6 in favor of Harbor, and no item is answered correctly in all runs on one side and in none on the other. Average accuracy differs by 0.2 points.
 
 **Setup:**
 - **Original side:** [`XBsleepy/ProcessBench@codex-backend`](https://github.com/XBsleepy/ProcessBench/tree/codex-backend), a fork of `QwenLM/ProcessBench` that adds `--backend codex` to `code/run_eval.py`. It sends the same prompt (including the appended output sentence) to `codex exec` in a fresh working directory and `CODEX_HOME`, reads `answer.txt`, and then uses the unchanged `extract_answer` and F1 code.
