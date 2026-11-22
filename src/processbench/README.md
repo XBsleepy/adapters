@@ -187,16 +187,15 @@ Reproduction:
     --ids_file parity_ids.txt --n_concurrent 8 --output_dir <out_dir>
   ```
   The data is downloaded from the Hugging Face dataset `Qwen/ProcessBench`. Run it three times with different `--output_dir` values.
-- **Harbor side** (Harbor 0.21.0, oracle-verified):
+- **Harbor side** (Harbor 0.21.0, oracle-verified). Edit `config` in `run_processbench_parity.yaml` to point at your codex `config.toml`, then:
   ```bash
   cd src/processbench && uv run processbench --split parity --output-dir ../../datasets/processbench_parity && cd ../..
-  uvx --from harbor==0.21.0 harbor run -p datasets/processbench_parity -a codex -m "openai/gpt-5.6-terra" \
-    --ak version=0.161.0 --ak config=<config.toml> --env daytona -n 32 --max-retries 2 \
-    --allow-agent-host <your provider host> --env-file <file with DAYTONA_API_KEY and OPENAI_API_KEY>
+  uvx --from harbor==0.21.0 harbor run -c src/processbench/run_processbench_parity.yaml \
+    --allow-agent-host <your provider host> --env-file <file with DAYTONA_API_KEY and your model API key>
   cd src/processbench && uv run python -m processbench.aggregate_metrics ../../jobs/<job_name> \
     --dataset-dir ../../datasets/processbench_parity
   ```
-  The agent network allowlist covers only the OpenAI and Anthropic APIs, so a relay host has to be added with `--allow-agent-host`. Running with `--env docker` also works.
+  The agent network allowlist covers only the OpenAI and Anthropic APIs, so a provider host such as a relay has to be added with `--allow-agent-host`. The reported runs used Daytona. On a local Docker host, set `environment.type: docker` and lower `n_concurrent_trials` to about 8: every trial installs codex in its own container, so higher concurrency only competes for CPU.
 
 ## Notes & Caveats
 
@@ -205,11 +204,12 @@ Reproduction:
 - **Answer parsing is unchanged from upstream,** including its limits. The regex `\\boxed\{([^}]*)\}` does not handle nested braces (`\boxed{\text{2}}` fails to parse), and a bare number without `\boxed{}` scores 0.
 - **F1 is a dataset-level metric.** Per-task reward is exact match. F1 has to be computed from a complete job with `aggregate_metrics.py`. Harbor's built-in mean reward is plain accuracy, which is dominated by the larger `label != -1` group.
 - **Not adapted:** the PRM evaluation path (`run_eval_prm_rlhflow.py`, which queries a process reward model one step at a time for a single `+`/`-` token) and the majority-voting mode (`--use_voting`). Neither maps onto a single agent trial.
+- **Environment context differs slightly between the two sides.** Codex adds its own environment context to the first message (working directory and timezone). On the original side it is `/tmp/processbench-codex-*/work` and `Asia/Shanghai`, on the Harbor side `/app` and `UTC`. The task prompt itself is byte-identical on both sides.
 - **Process errors with correct final answers:** 521 items have a correct final answer but a labelled process error (`final_answer_correct = true`, `label != -1`). This is intended by the benchmark.
 
 ## Installation / Prerequisites
 
-- Docker installed and running
+- Docker installed and running (the verifier is built from `tests/Dockerfile`), or a `DAYTONA_API_KEY` to run on Daytona (`environment.type: daytona`, used for the reported parity runs)
 - Harbor CLI: `uv tool install harbor`
 - Adapter environment (standard library only, no extra dependencies):
   ```bash
@@ -224,6 +224,7 @@ Reproduction:
 - **Download fails or hangs:** set `HF_ENDPOINT=https://hf-mirror.com`, or download the dataset with `hf download Qwen/ProcessBench --repo-type dataset --revision 3bdcd5371ed567559a78f559c01c13a6deee7604 --local-dir <dir>` and pass `--data-dir <dir>`.
 - **Reward 0 with an apparently correct answer:** check `verifier/test-stdout.txt` in the trial directory. It prints the parsed prediction. A common cause is a missing `\boxed{}` or `answer.txt` written outside `/app` (only `/app/answer.txt` is copied to the verifier).
 - **Agent fails with connection errors:** its API host is not in the allowlist; pass `--allow-agent-host <host>`.
+- **`AgentSetupTimeoutError` or `NonZeroAgentExitCodeError` while installing codex:** the in-container install of nodejs, npm and codex can time out or fail under high concurrency or a slow network. Keep `retry.max_retries` at 2 (Harbor retries only infrastructure errors), and on a local Docker host lower `n_concurrent_trials`. If the host cannot reach `archive.ubuntu.com`, mount a mirror `sources.list` into the container with `environment.mounts`.
 - **`aggregate_metrics.py` reports duplicate trials:** the job used more than one attempt per task. Aggregate jobs with `n_attempts: 1`, one run at a time.
 
 ## Citation
