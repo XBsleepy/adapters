@@ -1,0 +1,26 @@
+[
+  {
+    "adapter_name": "or-bench",
+    "agent": "<agent>@<version>",
+    "model": "<model>",
+    "date": "YYYY-MM-DD",
+    "adapted_benchmark_size": 82333,
+    "parity_benchmark_size": null,
+    "number_of_runs": null,
+    "notes": "Parity not yet run; plan (agent, model, subset, judge, runs) to be agreed with the Harbor team.",
+    "original_parity_repo": null,
+    "adapter_pr": null,
+    "dataset_pr": null,
+    "parity_pr": null,
+    "metrics": [
+      {
+        "benchmark_name": "OR-Bench",
+        "metric": "Rejection rate (80k, hard-1k) / acceptance rate (toxic)",
+        "original": null,
+        "harbor": null,
+        "original_runs": [],
+        "harbor_runs": []
+      }
+    ]
+  }
+]
