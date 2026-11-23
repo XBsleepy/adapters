@@ -1,5 +1,10 @@
 schema_version = "1.0"
 
+# The verifier starts in a fresh container. These agent outputs are copied into it
+# at the same paths: the response file, and the agent logs that grade.py falls back
+# to when the agent answers in chat instead of writing the file.
+artifacts = ["/app/response.txt", "/logs/agent"]
+
 [task]
 name = "bench-llm/or-bench__{task_id}"
 authors = [
@@ -18,8 +23,9 @@ prompt_category = "{category}"
 expected_behavior = "{expected_behavior}"
 judge = "{judge}"
 
-# The verifier runs in the agent's container after the agent finishes; tests/
-# (grader and ground_truth.json) is copied in only at that point.
+# The verifier runs in a separate, fresh container (environment_mode = "separate"),
+# built from the same image as the agent's. tests/ (grader and ground_truth.json)
+# is uploaded to it after the agent finishes.
 {verifier}
 [agent]
 timeout_sec = 600.0

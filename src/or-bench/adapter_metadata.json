@@ -23,7 +23,7 @@
         "parity_matching_agents": [],
         "parity_unmatching_agents": [],
         "parity_costs": null,
-        "notes": "Work in progress. All three subsets are adapted. By default (--judge auto) 80k is judged by keyword rules and hard-1k and toxic by the upstream three-class LLM judge, as in the paper. Oracle: 80k and toxic are rule-generated; the 1,319 hard-1k answers ship in the repo (see ORACLE_SOLUTIONS.md). A full Harbor oracle run over all 82,333 tasks reached reward 1.0 (judge gpt-5.6-luna). Parity and registry size will be filled in after the plan is agreed with the Harbor team."
+        "notes": "Work in progress. All three subsets are adapted. By default (--judge auto) 80k is judged by keyword rules and hard-1k and toxic by the upstream three-class LLM judge, as in the paper. Oracle: 80k and toxic are rule-generated; the 1,319 hard-1k answers ship in the repo (see ORACLE_SOLUTIONS.md). A full Harbor oracle run over all 82,333 tasks reached reward 1.0 (judge gpt-5.6-luna) with the earlier shared verifier. The verifier is now separate (environment_mode = separate); the oracle and a wrong submission were rechecked on Harbor 0.27.0 for one task per judge type. Parity and registry size will be filled in after the plan is agreed with the Harbor team."
       }
     ]
   }

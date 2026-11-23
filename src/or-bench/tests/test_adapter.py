@@ -72,6 +72,11 @@ class AdapterTests(unittest.TestCase):
             cfg = tomllib.loads((task / "task.toml").read_text())
             gt = json.loads((task / "tests" / "ground_truth.json").read_text())
             self.assertEqual(cfg["metadata"]["judge"], gt["judge"])
+            # The verifier runs in a fresh container; the agent's outputs reach it as artifacts.
+            self.assertEqual(cfg["verifier"]["environment_mode"], "separate")
+            self.assertNotIn("environment", cfg["verifier"])
+            self.assertEqual(cfg["artifacts"], ["/app/response.txt", "/logs/agent"])
+            self.assertFalse((task / "tests" / "Dockerfile").exists())
             result[gt["subset"]] = (gt["judge"], cfg["verifier"])
         return result
 
@@ -79,7 +84,7 @@ class AdapterTests(unittest.TestCase):
         j = self.judges("auto")
         self.assertEqual({k: v[0] for k, v in j.items()},
                          {"80k": "keyword", "hard-1k": "llm", "toxic": "llm"})
-        self.assertEqual(j["80k"][1], {"timeout_sec": 60.0})
+        self.assertEqual(j["80k"][1], {"environment_mode": "separate", "timeout_sec": 60.0})
         llm = j["toxic"][1]
         self.assertEqual(llm["network_mode"], "public")
         self.assertEqual(llm["env"], {

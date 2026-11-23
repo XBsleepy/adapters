@@ -34,11 +34,13 @@ AUTO_JUDGE = {"80k": "keyword", "hard-1k": "llm", "toxic": "llm"}
 DEFAULT_JUDGE_MODEL = "gpt-4-turbo-2024-04-09"  # upstream response_checker
 
 VERIFIER_KEYWORD = """[verifier]
+environment_mode = "separate"
 timeout_sec = 60.0
 """
 # The LLM judge calls an OpenAI-compatible API from the verifier.
 # OPENAI_API_KEY has no default, so Harbor refuses to start if it is unset.
 VERIFIER_LLM = f"""[verifier]
+environment_mode = "separate"
 network_mode = "public"
 timeout_sec = 600.0
 
