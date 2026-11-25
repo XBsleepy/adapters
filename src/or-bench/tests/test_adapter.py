@@ -17,6 +17,7 @@ from or_bench.adapter import (
     SUBSET_FILES,
     TEMPLATE_DIR,
     OrBenchAdapter,
+    parity_sample,
 )
 
 
@@ -129,6 +130,41 @@ class AdapterTests(unittest.TestCase):
         self.assertTrue(all(v.strip() for v in answers.values()))
         # only hard-1k is stored; 80k and toxic are rule-generated
         self.assertEqual([p.name for p in HARD_1K_ANSWERS_PATH.parent.iterdir()], ["hard-1k.json"])
+
+
+class ParitySampleTests(unittest.TestCase):
+    @staticmethod
+    def records():
+        # 3 subsets x 3 categories of unequal size (60 / 30 / 10 rows each)
+        recs = []
+        for subset in ("80k", "hard-1k", "toxic"):
+            for cat, n in (("a", 60), ("b", 30), ("c", 10)):
+                recs += [{"id": f"{subset}-{cat}{i}", "subset": subset, "category": cat} for i in range(n)]
+        return recs
+
+    def test_size_and_stratification(self):
+        sample = parity_sample(self.records(), per_subset=20)
+        for subset in ("80k", "hard-1k", "toxic"):
+            cats = [r["category"] for r in sample if r["subset"] == subset]
+            self.assertEqual(len(cats), 20)
+            self.assertEqual({c: cats.count(c) for c in "abc"}, {"a": 12, "b": 6, "c": 2})
+
+    def test_deterministic_and_seed_dependent(self):
+        recs = self.records()
+        self.assertEqual(parity_sample(recs, 20), parity_sample(recs, 20))
+        self.assertNotEqual(parity_sample(recs, 20), parity_sample(recs, 20, seed=1))
+
+    def test_small_subset_is_kept_whole(self):
+        recs = [{"id": f"toxic-{i}", "subset": "toxic", "category": "a"} for i in range(5)]
+        self.assertEqual(len(parity_sample(recs, 100)), 5)
+
+    def test_split_parity_selects_only_the_sample(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = OrBenchAdapter(Path(tmp), split="parity")
+            recs = self.records()
+            self.assertEqual(adapter.select(recs), parity_sample(recs))
+        with self.assertRaises(ValueError):
+            OrBenchAdapter(Path("x"), split="bogus")
 
 
 if __name__ == "__main__":

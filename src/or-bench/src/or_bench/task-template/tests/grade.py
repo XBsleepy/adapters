@@ -55,24 +55,18 @@ def from_trajectory(path: Path) -> str:
     return ""
 
 
-def _event_text(event: dict) -> str:
-    # claude-code stream-json: {"type": "result", "result": "..."}
-    if event.get("type") == "result" and isinstance(event.get("result"), str):
-        return event["result"].strip()
-    # codex exec --json: {"type": "item.completed", "item": {"type": "agent_message", "text": "..."}}
-    item = event.get("item")
-    if isinstance(item, dict) and item.get("type") == "agent_message":
-        return _text(item.get("text"))
-    # older codex: {"msg": {"type": "agent_message", "message": "..."}}
-    msg = event.get("msg")
-    if isinstance(msg, dict) and msg.get("type") == "agent_message":
-        return _text(msg.get("message"))
-    return ""
-
-
 def from_jsonl(path: Path) -> str:
-    """Last final-answer event in a JSONL agent log; plain-text logs are ignored."""
-    last = ""
+    """Final message from a JSONL agent log; plain-text logs are ignored.
+
+    codex exec --json: the agent_message items after the last tool item, joined
+    with a blank line. The relay can split one reply into several agent_message
+    items, so taking only the last item returns a fragment. The same rule is used
+    by the original-side runner (codex_eval/run_codex_eval.py) in the upstream fork.
+    claude-code stream-json: the last {"type": "result"} event.
+    Older codex: the last {"msg": {"type": "agent_message"}} event.
+    """
+    run: list[str] = []
+    other = ""
     for line in path.read_text(errors="replace").splitlines():
         line = line.strip()
         if not line.startswith("{"):
@@ -81,9 +75,21 @@ def from_jsonl(path: Path) -> str:
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if isinstance(event, dict):
-            last = _event_text(event) or last
-    return last
+        if not isinstance(event, dict):
+            continue
+        item = event.get("item")
+        if isinstance(item, dict) and event.get("type") == "item.completed":
+            if item.get("type") == "agent_message":
+                run.append(_text(item.get("text")))
+            elif item.get("type") not in ("error", "reasoning"):
+                run = []  # a tool call starts a new request
+            continue
+        if event.get("type") == "result" and isinstance(event.get("result"), str):
+            other = event["result"].strip() or other
+        msg = event.get("msg")
+        if isinstance(msg, dict) and msg.get("type") == "agent_message":
+            other = _text(msg.get("message")) or other
+    return "\n\n".join(t for t in run if t) or other
 
 
 def load_response() -> tuple[str, str | None]:
@@ -98,9 +104,10 @@ def load_response() -> tuple[str, str | None]:
 
     if not AGENT_LOGS_DIR.is_dir():
         return "", None
-    candidates = [(p, from_trajectory) for p in [AGENT_LOGS_DIR / "trajectory.json"]]
-    candidates += [(p, from_jsonl) for p in sorted(AGENT_LOGS_DIR.glob("*.txt"))]
+    # JSONL event logs first (codex, claude-code), then the ATIF trajectory.
+    candidates = [(p, from_jsonl) for p in sorted(AGENT_LOGS_DIR.glob("*.txt"))]
     candidates += [(p, from_jsonl) for p in sorted(AGENT_LOGS_DIR.glob("*.jsonl"))]
+    candidates += [(p, from_trajectory) for p in [AGENT_LOGS_DIR / "trajectory.json"]]
     for path, extract in candidates:
         if not path.is_file():
             continue

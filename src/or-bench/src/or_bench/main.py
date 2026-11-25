@@ -8,7 +8,7 @@ in the Harbor format at the configured output directory.
 import argparse
 from pathlib import Path
 
-from .adapter import JUDGE_CHOICES, SUBSETS, OrBenchAdapter
+from .adapter import JUDGE_CHOICES, SPLITS, SUBSETS, OrBenchAdapter
 
 # Default output dir: <repo>/datasets/<adapter_id>
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[4] / "datasets" / "or-bench"
@@ -66,6 +66,13 @@ def main() -> None:
         "keyword for 80k, LLM for hard-1k and toxic. keyword / llm: use that judge "
         "for every subset",
     )
+    parser.add_argument(
+        "--split",
+        choices=SPLITS,
+        default="full",
+        help="full (default): all tasks. parity: 100 tasks per subset (300 in total), "
+        "stratified by prompt category, seed 42",
+    )
     args = parser.parse_args()
 
     adapter = OrBenchAdapter(
@@ -77,6 +84,7 @@ def main() -> None:
         subsets=args.subsets,
         prebuilt_image=args.prebuilt_image,
         judge=args.judge,
+        split=args.split,
     )
 
     adapter.run()

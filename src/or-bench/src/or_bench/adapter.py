@@ -9,6 +9,7 @@ Toxic subset: the desired behaviour is to refuse.
 import csv
 import json
 import os
+import random
 import shutil
 import urllib.request
 from pathlib import Path
@@ -106,6 +107,38 @@ def oracle_response(prompt: str, subset: str, task_id: str = "", answers: dict |
     return SAFE_ORACLE_TEMPLATE.replace("{prompt}", prompt)
 
 
+SPLITS = ["full", "parity"]
+PARITY_PER_SUBSET = 100
+PARITY_SEED = 42
+
+
+def parity_sample(
+    records: list[dict], per_subset: int = PARITY_PER_SUBSET, seed: int = PARITY_SEED
+) -> list[dict]:
+    """Fixed parity subset: `per_subset` tasks from every subset, stratified by prompt
+    category in proportion to the category sizes (largest-remainder rounding),
+    sampled with `random.Random(seed)`. Subsets and categories are visited in sorted
+    order, so the result depends only on the data and the seed. Returned in
+    record order."""
+    rng = random.Random(seed)
+    chosen: set[str] = set()
+    for subset in sorted({r["subset"] for r in records}):
+        by_cat: dict[str, list[dict]] = {}
+        for r in records:
+            if r["subset"] == subset:
+                by_cat.setdefault(r["category"], []).append(r)
+        total = sum(len(v) for v in by_cat.values())
+        k = min(per_subset, total)
+        quota = {c: k * len(v) / total for c, v in by_cat.items()}
+        count = {c: int(q) for c, q in quota.items()}
+        # Largest remainder; ties broken by category name.
+        for c in sorted(quota, key=lambda c: (-(quota[c] - count[c]), c))[: k - sum(count.values())]:
+            count[c] += 1
+        for c in sorted(by_cat):
+            chosen.update(r["id"] for r in rng.sample(by_cat[c], count[c]))
+    return [r for r in records if r["id"] in chosen]
+
+
 class OrBenchAdapter:
     def __init__(
         self,
@@ -117,6 +150,7 @@ class OrBenchAdapter:
         subsets: list[str] | None = None,
         prebuilt_image: bool = False,
         judge: str = "auto",
+        split: str = "full",
         **kwargs,
     ):
         self.output_dir = Path(output_dir)
@@ -132,6 +166,9 @@ class OrBenchAdapter:
         if judge not in JUDGE_CHOICES:
             raise ValueError(f"judge must be one of {JUDGE_CHOICES}, got {judge!r}")
         self.judge = judge
+        if split not in SPLITS:
+            raise ValueError(f"split must be one of {SPLITS}, got {split!r}")
+        self.split = split
         # Loaded once; only read when hard-1k tasks are generated.
         self._hard_1k_answers: dict[str, str] | None = None
 
@@ -160,6 +197,8 @@ class OrBenchAdapter:
         return records
 
     def select(self, records: list[dict]) -> list[dict]:
+        if self.split == "parity":
+            records = parity_sample(records)
         if self.task_ids:
             wanted = set(self.task_ids)
             records = [
