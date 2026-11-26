@@ -7,7 +7,7 @@ This adapter converts [OR-Bench](https://github.com/justincui03/or-bench) (ICML 
 - **Size:** 82,333 tasks: `80k` (80,359 seemingly toxic but safe prompts), `hard-1k` (1,319 hard safe prompts), `toxic` (655 toxic prompts).
 - **Source:** Hugging Face dataset [`bench-llm/or-bench`](https://huggingface.co/datasets/bench-llm/or-bench), pinned to revision `e36d8b80e81837c8a8f264bbb2a49f1b32c7e272`. Code reference: upstream commit [`4fad1f9`](https://github.com/justincui03/or-bench/tree/4fad1f9).
 - **Domain / language:** LLM safety alignment, English.
-- **Status:** work in progress; parity ran on a 300-task subset (see [Comparison with Original Benchmark](#comparison-with-original-benchmark-parity)). By default the verifier uses keyword rules on `80k` and the upstream GPT-4 judge on `hard-1k` and `toxic`, as in the paper.
+- **Status:** parity ran on a 300-task subset (see [Comparison with Original Benchmark](#comparison-with-original-benchmark-parity)). By default the verifier uses keyword rules on `80k` and the upstream GPT-4 judge on `hard-1k` and `toxic`, as in the paper.
 
 ## What is OR-Bench?
 
@@ -66,7 +66,7 @@ datasets/or-bench/
 
 ### Running with Datasets Registry
 
-Not published yet.
+Not published yet. The dataset PR is [harbor-datasets#311](https://github.com/harbor-framework/harbor-datasets/pull/311).
 
 ### Using Job Configurations
 
@@ -151,6 +151,8 @@ git clone -b codex-backend https://github.com/XBsleepy/or-bench && cd or-bench/c
 python run_codex_eval.py --data_dir ../data --ids_file parity_ids.txt --output_dir ./outputs \
     --model gpt-5.6-terra --judge_model gpt-5.6-terra --n_concurrent 7
 ```
+
+**Links.** Original benchmark: [justincui03/or-bench](https://github.com/justincui03/or-bench). Original-side fork: [XBsleepy/or-bench, branch `codex-backend`](https://github.com/XBsleepy/or-bench/tree/codex-backend). Adapter PR: [harbor-framework/adapters#140](https://github.com/harbor-framework/adapters/pull/140). Dataset PR: [harbor-framework/harbor-datasets#311](https://github.com/harbor-framework/harbor-datasets/pull/311). Parity results: [HuggingFace parity-experiments #314](https://huggingface.co/datasets/harborframework/parity-experiments/discussions/314).
 
 **Caveat.** The final-message fallback joins split messages, but an agent that fails to write `response.txt` can still be judged as a refusal from its own explanation. Check `response_source` in `metrics.json` before trusting a run.
 
