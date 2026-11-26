@@ -9,9 +9,9 @@
     "number_of_runs": 3,
     "notes": "Parity on a fixed 300-task subset (100 per subset: 80k, hard-1k, toxic), stratified by prompt category in proportion to the category sizes, seed 42 (`--split parity`; ids in codex_eval/parity_ids.txt of the fork). 3 runs per side, run in the same order on both sides (r1, r2, r3). Agent codex@0.161.0 and model gpt-5.6-terra on both sides; the LLM judge for hard-1k and toxic is also gpt-5.6-terra (not the upstream gpt-4-turbo-2024-04-09), 80k uses the adapter's keyword rules on both sides. The original side is the fork's codex backend (codex_eval/run_codex_eval.py), which sends byte-identical prompts (checked for all 300) and uses the upstream three-class judge prompt. Metrics are rates over valid trials: rejection rate on 80k and hard-1k, acceptance rate on toxic (lower is better). Run-score ranges overlap on all three subsets; on hard-1k the ranges only touch (original max 35.0 = Harbor min 35.0) and Harbor is 1 to 4 points above the original in every run, which is within the noise of the LLM judge on borderline answers (not separately quantified). Two or three toxic tasks per run have no response on either side (upstream conversation_cyber_locked error) and are excluded from the rates. Costs not recorded.",
     "original_parity_repo": "https://github.com/XBsleepy/or-bench/tree/codex-backend",
-    "adapter_pr": null,
-    "dataset_pr": null,
-    "parity_pr": null,
+    "adapter_pr": ["https://github.com/harbor-framework/adapters/pull/140"],
+    "dataset_pr": ["https://github.com/XBsleepy/harbor-datasets/pull/1"],
+    "parity_pr": ["https://huggingface.co/datasets/harborframework/parity-experiments/discussions/314"],
     "metrics": [
       {
         "benchmark_name": "OR-Bench (80k)",
