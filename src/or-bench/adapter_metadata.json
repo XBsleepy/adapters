@@ -32,7 +32,7 @@
         "parity_unmatching_agents": [
           "None"
         ],
-        "parity_costs": null,
+        "parity_costs": "$48",
         "notes": "Work in progress. All three subsets are adapted. By default (--judge auto) 80k is judged by keyword rules and hard-1k and toxic by the upstream three-class LLM judge, as in the paper. Oracle: 80k and toxic are rule-generated; the 1,319 hard-1k answers ship in the repo (see ORACLE_SOLUTIONS.md). Full Harbor oracle run over all 82,333 tasks reached reward 1.0 (judge gpt-5.6-luna) with the earlier shared verifier; a clean-room rerun on Harbor 0.27.0 with the separate verifier covered hard-1k, toxic and 1000 random 80k tasks (the 6 hard-1k misses were LLM-judge noise; their answers were rewritten and pass 10/10 judge calls). Parity: 300-task subset (`--split parity`, 100 per subset, seed 42), codex@0.161.0 + gpt-5.6-terra (agent and judge), 3 runs per side, run ranges overlap on all subsets (see parity_experiment.json). registry_benchmark_size and costs are filled in after the dataset is published."
       }
     ]
