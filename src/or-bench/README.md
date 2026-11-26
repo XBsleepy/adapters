@@ -66,7 +66,7 @@ datasets/or-bench/
 
 ### Running with Datasets Registry
 
-Not published yet. The dataset PR is [harbor-datasets#311](https://github.com/harbor-framework/harbor-datasets/pull/311).
+Not published yet. [harbor-datasets#311](https://github.com/harbor-framework/harbor-datasets/pull/311) adds the 300-task parity subset as `bench-llm/or-bench-parity`. The full 82,333-task dataset is not registered yet; generate it locally with `uv run or-bench` (see below).
 
 ### Using Job Configurations
 
